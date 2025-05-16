@@ -1,0 +1,42 @@
+# docker-compose.yaml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8111
+    volumes:
+      - .:/app # Mounts your current directory into /app in the container (for live code changes)
+      - sqlite_data:/app/db # Persists the SQLite database
+    ports:
+      - "8111:8111" # Maps port 8111 on your host to port 8111 in the container
+    environment:
+      - DEBUG=1 # Example: set Django debug mode (you can manage this in settings.py too)
+      # Add other environment variables your Django app might need
+      # - SECRET_KEY=your_development_secret_key # Not recommended for production
+      # - DATABASE_URL=sqlite:////app/db/db.sqlite3 # If your app reads this
+    depends_on:
+      db:
+        condition: service_healthy # Optional: if you had a separate DB container
+    # If you want to use a separate volume for the SQLite file directly:
+    # volumes:
+    #   - .:/app
+    #   - ./db.sqlite3:/app/db.sqlite3 # Mount the specific file if it's at the root
+
+  # This is a more robust way to handle the SQLite database
+  # by putting it in a dedicated volume and a specific directory.
+  # Your settings.py should point to '/app/db/db.sqlite3'
+  db:
+    image: alpine # A tiny image just to own the volume
+    volumes:
+      - sqlite_data:/data # This volume will hold the db.sqlite3 file
+    # If your db.sqlite3 is in the project root, and you want to initialize the volume with it:
+    # command: sh -c "cp /app_src/db.sqlite3 /data/db.sqlite3 || true"
+    # volumes:
+    #   - ./db.sqlite3:/app_src/db.sqlite3:ro # Mount host db read-only to copy from
+    #   - sqlite_data:/data
+    healthcheck:
+      test: ["CMD", "true"] # Dummy healthcheck
+
+volumes:
+  sqlite_data: # Defines a named volume for persistent SQLite data
